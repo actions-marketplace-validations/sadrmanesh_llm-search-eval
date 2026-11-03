@@ -58,11 +58,12 @@ dev = ["pytest>=7.4", "pytest-cov>=4.1", "ruff>=0.5", "mypy>=1.10"]
 llm-search-eval = "llm_search_eval.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/sadrmanesh/llm-search-eval"
+Homepage = "https://sadrmanesh.github.io/llm-search-eval/"
 Repository = "https://github.com/sadrmanesh/llm-search-eval"
 Issues = "https://github.com/sadrmanesh/llm-search-eval/issues"
 Documentation = "https://sadrmanesh.github.io/llm-search-eval/"
 Changelog = "https://github.com/sadrmanesh/llm-search-eval/blob/main/CHANGELOG.md"
+Author = "https://sadrmanesh.github.io/"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/llm_search_eval"]

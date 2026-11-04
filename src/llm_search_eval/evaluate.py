@@ -125,6 +125,9 @@ class JudgedPair:
     votes: tuple[Vote, ...] = ()
     #: Gold label of the pair; set only for calibration judgments.
     gold: int | None = None
+    #: Model the judge was configured with, and the model name the provider returned.
+    judge_model: str | None = None
+    judge_model_version: str | None = None
 
 
 @dataclass(slots=True)
@@ -260,6 +263,7 @@ def build_labels(
     if tracker is None:
         tracker = CostTracker()
     provenance = judge.info
+    judge_model = provenance.get("model")
 
     def grade(pair: tuple[str, str]) -> JudgedPair:
         qid, pid = pair
@@ -269,12 +273,32 @@ def build_labels(
         hit = cache.get(key)
         if hit is not None:
             tracker.record_cache_hit()
-            return JudgedPair(qid, pid, hit.relevance, hit.reason, "cache", hit.votes, gold)
+            return JudgedPair(
+                qid,
+                pid,
+                hit.relevance,
+                hit.reason,
+                "cache",
+                hit.votes,
+                gold,
+                judge_model,
+                hit.model_version,
+            )
         tracker.reserve()
         result = judge.judge(query, product)
         tracker.record(result.usages())
         cache.put(key, result, query_id=qid, product_id=pid, judge=provenance)
-        return JudgedPair(qid, pid, result.relevance, result.reason, "judge", result.votes, gold)
+        return JudgedPair(
+            qid,
+            pid,
+            result.relevance,
+            result.reason,
+            "judge",
+            result.votes,
+            gold,
+            judge_model,
+            result.model_version,
+        )
 
     done = 0
     with ThreadPoolExecutor(max_workers=max(1, concurrency)) as pool:
@@ -319,6 +343,13 @@ def _provenance(info: dict[str, Any]) -> dict[str, Any]:
     return {k: info.get(k) for k in ("provider", "model", "prompt_version", "prompt_hash")}
 
 
+def _model_versions(judged: Sequence[JudgedPair]) -> list[str]:
+    """Every model name the provider returned, including panel members, sorted."""
+    found = {p.judge_model_version for p in judged if p.judge_model_version}
+    found.update(v.model_version for p in judged for v in p.votes if v.model_version)
+    return sorted(found)
+
+
 def judge_analysis(
     judged: Sequence[JudgedPair], judge: Judge | None, threshold: int
 ) -> dict[str, Any] | None:
@@ -333,6 +364,7 @@ def judge_analysis(
         **_provenance(judge.info),
         "panel": None,
         "pairs": len(judged),
+        "model_versions": _model_versions(judged),
         "label_distribution": {str(g): distribution.get(g, 0) for g in range(4)},
         "agreement": None,
         "gold_agreement": None,

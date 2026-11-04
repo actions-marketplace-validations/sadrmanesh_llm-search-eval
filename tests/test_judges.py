@@ -326,3 +326,35 @@ def test_cache_keeps_panel_votes(tmp_path):
 def test_create_judge_reports_invalid_option_values():
     with pytest.raises(ConfigError, match="invalid options"):
         create_judge("mock", noise=5)
+
+
+# Judge model version ------------------------------------------------------------
+
+
+def test_openai_judge_records_the_returned_model_version():
+    body = {
+        "model": "gpt-4o-mini-2024-07-18",
+        "choices": [{"message": {"content": '{"relevance": 2}'}}],
+    }
+    judge = make_judge(
+        FakeTransport([HTTPResponse(200, json.dumps(body)), chat('{"relevance": 1}')]),
+        model="gpt-4o-mini",
+    )
+    assert judge.judge(QUERY, PRODUCT).model_version == "gpt-4o-mini-2024-07-18"
+    assert judge.judge(QUERY, PRODUCT).model_version is None  # no model field in the reply
+
+
+def test_cache_keeps_the_model_version(tmp_path):
+    from llm_search_eval.judges.base import Vote
+
+    path = tmp_path / "cache.jsonl"
+    votes = (Vote("a", 3, "yes", model_version="m-2024"), Vote("b", 2, "ok"))
+    JudgmentCache(path).put("k", Judgment(3, "", votes=votes, model_version="m-2024"))
+    record = json.loads(path.read_text(encoding="utf-8"))
+    assert record["model_version"] == "m-2024"
+    assert record["votes"][0]["model_version"] == "m-2024"
+    assert "model_version" not in record["votes"][1]
+    loaded = JudgmentCache(path).get("k")
+    assert loaded is not None
+    assert loaded.model_version == "m-2024"
+    assert [v.model_version for v in loaded.votes] == ["m-2024", None]

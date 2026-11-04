@@ -82,3 +82,36 @@ def test_markdown_judging_and_cost_sections(example_dataset, example_runs):
     assert "| `gpt-4o-mini` | 1 | 1,000 | 100 | $0.0002 |" in md
     assert "No price configured for `local`" in md
     assert "Budget: max cost USD 5" in md
+
+
+def test_judgments_record_the_judge_model_version(tmp_path, example_dataset, example_runs):
+    from llm_search_eval.judges import Judge, Judgment
+    from llm_search_eval.judges.base import judge_info
+
+    class SnapshotJudge(Judge):
+        name = "snapshot"
+
+        @property
+        def info(self):
+            return judge_info(self.label, "example.test", "judge-model")
+
+        def judge(self, query, product):
+            return Judgment(1, "ok", model_version="judge-model-2026-01-01")
+
+    report = evaluate(example_dataset, example_runs, judge=SnapshotJudge())
+    write_reports(report, tmp_path)
+    lines = (tmp_path / "judgments.jsonl").read_text(encoding="utf-8").splitlines()
+    record = json.loads(lines[0])
+    assert record["judge_model"] == "judge-model"
+    assert record["judge_model_version"] == "judge-model-2026-01-01"
+    data = json.loads((tmp_path / "report.json").read_text(encoding="utf-8"))
+    assert data["judging"]["model_versions"] == ["judge-model-2026-01-01"]
+
+
+def test_judgments_omit_the_model_fields_when_unknown(tmp_path, example_dataset, example_runs):
+    report = evaluate(example_dataset, example_runs, judge=MockJudge())
+    write_reports(report, tmp_path)
+    record = json.loads((tmp_path / "judgments.jsonl").read_text(encoding="utf-8").splitlines()[0])
+    assert "judge_model" not in record
+    assert "judge_model_version" not in record
+    assert report.to_dict()["judging"]["model_versions"] == []

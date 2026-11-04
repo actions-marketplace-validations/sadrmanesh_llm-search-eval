@@ -160,11 +160,11 @@ class OpenAICompatibleJudge(Judge):
         return payload
 
     def judge(self, query: Query, product: Product) -> Judgment:
-        content, usage = self.complete(
+        content, usage, returned_model = self._request(
             build_messages(query, product, self.max_product_chars),
             what=f"{query.query_id}/{product.product_id}",
         )
-        return replace(parse_judgment(content), usage=usage)
+        return replace(parse_judgment(content), usage=usage, model_version=returned_model)
 
     def complete(
         self, messages: list[dict[str, Any]], *, what: str = "request"
@@ -174,6 +174,13 @@ class OpenAICompatibleJudge(Judge):
         Retries rate limits, server errors and network failures with backoff.
         Other judges (for example the pairwise judge) reuse this method.
         """
+        content, usage, _ = self._request(messages, what=what)
+        return content, usage
+
+    def _request(
+        self, messages: list[dict[str, Any]], *, what: str
+    ) -> tuple[str, TokenUsage | None, str | None]:
+        """Like :meth:`complete`, plus the model name the provider returned."""
         url = f"{self.base_url}/chat/completions"
         headers = {"Content-Type": "application/json", **self.extra_headers}
         if self.api_key:
@@ -203,7 +210,7 @@ def _requires_key(base_url: str) -> bool:
     )
 
 
-def _message_content(body: str, model: str) -> tuple[str, TokenUsage | None]:
+def _message_content(body: str, model: str) -> tuple[str, TokenUsage | None, str | None]:
     try:
         data = json.loads(body)
         content = data["choices"][0]["message"]["content"]
@@ -211,7 +218,9 @@ def _message_content(body: str, model: str) -> tuple[str, TokenUsage | None]:
         raise JudgeError(f"unexpected chat completions response: {body[:300]!r}") from exc
     if not isinstance(content, str):
         raise JudgeError("chat completions response has no text content")
-    return content, _parse_usage(data, model)
+    returned = data.get("model") if isinstance(data, dict) else None
+    returned_model = returned if isinstance(returned, str) and returned else None
+    return content, _parse_usage(data, model), returned_model
 
 
 def _parse_usage(data: Any, model: str) -> TokenUsage | None:

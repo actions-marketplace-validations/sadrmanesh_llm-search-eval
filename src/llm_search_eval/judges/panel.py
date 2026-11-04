@@ -105,7 +105,9 @@ class JudgePanel(Judge):
             result = member.judge(query, product)
         except JudgeError as exc:
             return Vote(self.labels[index], None, f"failed: {exc}")
-        return Vote(self.labels[index], result.relevance, result.reason, result.usage)
+        return Vote(
+            self.labels[index], result.relevance, result.reason, result.usage, result.model_version
+        )
 
     def judge(self, query: Query, product: Product) -> Judgment:
         indexes = range(len(self.judges))

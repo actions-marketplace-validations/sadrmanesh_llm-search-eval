@@ -533,8 +533,15 @@ def write_reports(
                     "reason": j.reason,
                     "source": j.source,
                 }
+                if j.judge_model is not None:
+                    record["judge_model"] = j.judge_model
+                if j.judge_model_version is not None:
+                    record["judge_model_version"] = j.judge_model_version
                 if j.votes:
                     record["votes"] = {v.judge: v.relevance for v in j.votes}
+                    versions = {v.judge: v.model_version for v in j.votes if v.model_version}
+                    if versions:
+                        record["vote_model_versions"] = versions
                 if j.gold is not None:
                     record["gold"] = j.gold
                 fh.write(json.dumps(record, ensure_ascii=False) + "\n")

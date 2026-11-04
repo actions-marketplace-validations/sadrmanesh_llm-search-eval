@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-04
+
+Every score now records which judge model version produced it.
+
+### Added
+
+- A warning when judge model versions differ within one run. `report.json` gains `judging.model_version_counts` (versions and judgment counts per configured model, panel votes and cached judgments included) and `judging.mixed_model_versions`, which is `true` when any model returned more than one version. The CLI, `report.md` and `report.html` then warn that the scores are not directly comparable. Existing fields are unchanged.
+- The judge model version next to each score. OpenAI-compatible judges keep the `model` field of each reply, which providers often fill with a dated snapshot of the requested model. `judgments.jsonl` gains `judge_model` and `judge_model_version` (and `vote_model_versions` for panels), the judgment cache stores `model_version`, and `report.json` lists every returned version under `judging.model_versions`, so scores from a silently updated model can be told apart. Existing fields are unchanged.
+
+### Changed
+
+- The package version is now 0.5.0.
+
 ## [0.4.0] - 2026-10-31
 
 Every result now records which judge prompt produced it.
@@ -107,7 +120,8 @@ Initial release.
 - Bilingual electronics example dataset with three systems and a sample report.
 - Continuous integration with ruff and pytest on Python 3.10, 3.11, and 3.12.
 
-[Unreleased]: https://github.com/sadrmanesh/llm-search-eval/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/sadrmanesh/llm-search-eval/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/sadrmanesh/llm-search-eval/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/sadrmanesh/llm-search-eval/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/sadrmanesh/llm-search-eval/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/sadrmanesh/llm-search-eval/compare/v0.3.0...v0.3.1

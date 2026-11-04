@@ -48,11 +48,15 @@ class JudgmentCache:
                         str(v["judge"]),
                         None if v.get("relevance") is None else int(v["relevance"]),
                         str(v.get("reason", "")),
+                        model_version=v.get("model_version"),
                     )
                     for v in rec.get("votes") or ()
                 )
                 self._entries[rec["key"]] = Judgment(
-                    int(rec["relevance"]), rec.get("reason", ""), votes=votes
+                    int(rec["relevance"]),
+                    rec.get("reason", ""),
+                    votes=votes,
+                    model_version=rec.get("model_version"),
                 )
             except (json.JSONDecodeError, KeyError, TypeError, ValueError):
                 log.warning("%s:%d: skipping corrupt cache entry", path, lineno)
@@ -87,9 +91,16 @@ class JudgmentCache:
             }
             if judge is not None:
                 record["judge"] = judge
+            if judgment.model_version is not None:
+                record["model_version"] = judgment.model_version
             if judgment.votes:
                 record["votes"] = [
-                    {"judge": v.judge, "relevance": v.relevance, "reason": v.reason}
+                    {
+                        "judge": v.judge,
+                        "relevance": v.relevance,
+                        "reason": v.reason,
+                        **({"model_version": v.model_version} if v.model_version else {}),
+                    }
                     for v in judgment.votes
                 ]
             with self.path.open("a", encoding="utf-8") as fh:

@@ -33,6 +33,8 @@ class Vote:
     relevance: int | None
     reason: str = ""
     usage: TokenUsage | None = None
+    #: Model name the provider reported for this vote, for example a dated snapshot.
+    model_version: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,12 +43,16 @@ class Judgment:
 
     ``usage`` is set by judges that call a metered model. ``votes`` is set by
     :class:`~llm_search_eval.judges.panel.JudgePanel` and holds each member's label.
+    ``model_version`` is the model name the provider returned with the reply (the
+    ``model`` field of an OpenAI-compatible response), which is often a dated
+    snapshot of the requested model. It is ``None`` when the judge does not know it.
     """
 
     relevance: int
     reason: str = ""
     usage: TokenUsage | None = None
     votes: tuple[Vote, ...] = ()
+    model_version: str | None = None
 
     def usages(self) -> list[TokenUsage]:
         """Every metered request behind this judgment, including panel members."""

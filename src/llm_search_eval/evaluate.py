@@ -125,6 +125,9 @@ class JudgedPair:
     votes: tuple[Vote, ...] = ()
     #: Gold label of the pair; set only for calibration judgments.
     gold: int | None = None
+    #: Model the judge was configured with, and the model name the provider returned.
+    judge_model: str | None = None
+    judge_model_version: str | None = None
 
 
 @dataclass(slots=True)
@@ -260,6 +263,7 @@ def build_labels(
     if tracker is None:
         tracker = CostTracker()
     provenance = judge.info
+    judge_model = provenance.get("model")
 
     def grade(pair: tuple[str, str]) -> JudgedPair:
         qid, pid = pair
@@ -269,12 +273,32 @@ def build_labels(
         hit = cache.get(key)
         if hit is not None:
             tracker.record_cache_hit()
-            return JudgedPair(qid, pid, hit.relevance, hit.reason, "cache", hit.votes, gold)
+            return JudgedPair(
+                qid,
+                pid,
+                hit.relevance,
+                hit.reason,
+                "cache",
+                hit.votes,
+                gold,
+                judge_model,
+                hit.model_version,
+            )
         tracker.reserve()
         result = judge.judge(query, product)
         tracker.record(result.usages())
         cache.put(key, result, query_id=qid, product_id=pid, judge=provenance)
-        return JudgedPair(qid, pid, result.relevance, result.reason, "judge", result.votes, gold)
+        return JudgedPair(
+            qid,
+            pid,
+            result.relevance,
+            result.reason,
+            "judge",
+            result.votes,
+            gold,
+            judge_model,
+            result.model_version,
+        )
 
     done = 0
     with ThreadPoolExecutor(max_workers=max(1, concurrency)) as pool:
@@ -319,6 +343,37 @@ def _provenance(info: dict[str, Any]) -> dict[str, Any]:
     return {k: info.get(k) for k in ("provider", "model", "prompt_version", "prompt_hash")}
 
 
+def _model_versions(judged: Sequence[JudgedPair]) -> list[str]:
+    """Every model name the provider returned, including panel members, sorted."""
+    found = {p.judge_model_version for p in judged if p.judge_model_version}
+    found.update(v.model_version for p in judged for v in p.votes if v.model_version)
+    return sorted(found)
+
+
+def _model_version_counts(judged: Sequence[JudgedPair], judge: Judge) -> dict[str, dict[str, int]]:
+    """Returned versions per configured model, with how many judgments reported each.
+
+    Panel votes count under the member's configured model. Pairs and votes whose
+    judge reported no version are left out, so a judge that reports nothing yields
+    an empty mapping.
+    """
+    member_models: dict[str, str] = {}
+    if isinstance(judge, JudgePanel):
+        for member in judge.info.get("members", []):
+            member_models[member["judge"]] = member.get("model") or member["judge"]
+    fallback = judge.info.get("model") or judge.label
+    counts: dict[str, Counter[str]] = {}
+    for pair in judged:
+        if pair.judge_model_version:
+            model = pair.judge_model or fallback
+            counts.setdefault(model, Counter())[pair.judge_model_version] += 1
+        for vote in pair.votes:
+            if vote.model_version:
+                model = member_models.get(vote.judge, vote.judge)
+                counts.setdefault(model, Counter())[vote.model_version] += 1
+    return {model: dict(sorted(found.items())) for model, found in sorted(counts.items())}
+
+
 def judge_analysis(
     judged: Sequence[JudgedPair], judge: Judge | None, threshold: int
 ) -> dict[str, Any] | None:
@@ -327,12 +382,16 @@ def judge_analysis(
         return None
     members = list(judge.labels) if isinstance(judge, JudgePanel) else []
     distribution = Counter(p.relevance for p in judged)
+    version_counts = _model_version_counts(judged, judge)
     out: dict[str, Any] = {
         "judge": judge.label,
         "fingerprint": judge.fingerprint,
         **_provenance(judge.info),
         "panel": None,
         "pairs": len(judged),
+        "model_versions": _model_versions(judged),
+        "model_version_counts": version_counts,
+        "mixed_model_versions": any(len(v) > 1 for v in version_counts.values()),
         "label_distribution": {str(g): distribution.get(g, 0) for g in range(4)},
         "agreement": None,
         "gold_agreement": None,

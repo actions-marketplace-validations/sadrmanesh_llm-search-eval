@@ -12,7 +12,7 @@ Built for e-commerce teams who ship ranking changes (BM25 to vectors, hybrid ret
 
 **Documentation:** <https://sadrmanesh.github.io/llm-search-eval/> · **Live sample dashboard:** <https://sadrmanesh.github.io/llm-search-eval/demo/report.html> · **Try it in the browser:** [Hugging Face Space](https://huggingface.co/spaces/sadrmanesh/llm-search-eval-demo) · **Example data:** [Hugging Face dataset](https://huggingface.co/datasets/sadrmanesh/llm-search-eval-electronics)
 
-**Read more:** [Is your new search actually better? Label gaps, LLM judge panels, and paired statistics for offline search evaluation](https://dev.to/sadrmanesh/is-your-new-search-actually-better-label-gaps-llm-judge-panels-and-paired-statistics-for-offline-490p) on Dev.to · [Five questions I ask before shipping a ranking change](https://www.linkedin.com/pulse/your-new-search-actually-better-five-questions-i-ask-naser-sadrmanesh-s2sff/) on LinkedIn
+**Read more:** [Is your new search actually better? Label gaps, LLM judge panels, and paired statistics for offline search evaluation](https://dev.to/sadrmanesh/is-your-new-search-actually-better-label-gaps-llm-judge-panels-and-paired-statistics-for-offline-490p) on Dev.to · [Five questions I ask before shipping a ranking change](https://www.linkedin.com/pulse/your-new-search-actually-better-five-questions-i-ask-naser-sadrmanesh-s2sff/) on LinkedIn · Update: [A week of reader feedback: what changed in my four AI-for-commerce tools](https://dev.to/sadrmanesh/a-week-of-reader-feedback-what-changed-in-my-four-ai-for-commerce-tools-5aa1) on Dev.to · [What reader feedback taught me about building production-safe AI tooling for commerce](https://www.linkedin.com/pulse/what-reader-feedback-taught-me-building-ai-tooling-naser-sadrmanesh-w3guf/) on LinkedIn
 
 ---
 
@@ -77,7 +77,7 @@ pip install llm-search-eval
 or straight from a release tag:
 
 ```bash
-pip install "git+https://github.com/sadrmanesh/llm-search-eval@v0.4.0"
+pip install "git+https://github.com/sadrmanesh/llm-search-eval@v0.5.0"
 ```
 
 Optional extras let the connectors reuse official clients: `llm-search-eval[elasticsearch]`, `[opensearch]`, and `[algolia]`. They are not needed for the default HTTP mode.
@@ -85,7 +85,7 @@ Optional extras let the connectors reuse official clients: `llm-search-eval[elas
 Or run the Docker image from [Docker Hub](https://hub.docker.com/r/sadrmanesh/llm-search-eval) or the GitHub Container Registry (`ghcr.io/sadrmanesh/llm-search-eval`), for `linux/amd64` and `linux/arm64`. Mount your data into `/work`:
 
 ```bash
-docker run --rm -v "$PWD:/work" sadrmanesh/llm-search-eval:0.4.0 run \
+docker run --rm -v "$PWD:/work" sadrmanesh/llm-search-eval:0.5.0 run \
   -q eval/queries.jsonl -p eval/products.jsonl --qrels eval/qrels.csv \
   -s bm25=eval/runs/bm25.jsonl -s hybrid=eval/runs/hybrid.trec --judge mock -o reports
 ```
@@ -311,7 +311,7 @@ llm-search-eval sample -q queries.jsonl -o to-label.jsonl --sample 300 --stratif
 | `report.json` | Everything above plus per-query metric values, rankings, labels, and the full configuration. |
 | `report.html` | Interactive dashboard in one self-contained file: metric charts with interval whiskers, system comparison with per-query deltas, per-stratum results, pairwise verdicts, judge agreement, cost, and a searchable per-query drilldown that shows every system's ranking side by side. |
 | `cost.json` | Token usage, cost per model, and budget state. |
-| `judgments.jsonl` | Every judge label with its reason, source, panel votes, and gold label for calibration pairs. |
+| `judgments.jsonl` | Every judge label with its reason, source, panel votes, gold label for calibration pairs, and the judge model with the model version the provider returned (`judge_model`, `judge_model_version`). If one model returns more than one version in a run, `report.json` sets `judging.mixed_model_versions` and the reports print a warning. |
 
 `--format` selects any of `md`, `json`, and `html` (all by default). `llm-search-eval report report.json` re-renders the Markdown or HTML from a saved JSON report. Details: [docs/reports.md](docs/reports.md).
 
@@ -330,7 +330,7 @@ It checks metric floors and drops against the baseline system or against a `--re
 The repository is also a reusable GitHub Action that runs the evaluation, applies the gate, writes the result to the job summary, and posts it as a pull request comment that is updated on every push:
 
 ```yaml
-- uses: sadrmanesh/llm-search-eval@v0.4.0
+- uses: sadrmanesh/llm-search-eval@v0.5.0
   env:
     OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
   with:

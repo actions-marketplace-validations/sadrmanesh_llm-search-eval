@@ -28,7 +28,12 @@ from llm_search_eval.judges.base import Judge
 from llm_search_eval.judges.panel import AGGREGATIONS, JudgePanel
 from llm_search_eval.metrics import DEFAULT_METRICS
 from llm_search_eval.models import Run
-from llm_search_eval.report import render_markdown, summary_table, write_reports
+from llm_search_eval.report import (
+    mixed_versions_warning,
+    render_markdown,
+    summary_table,
+    write_reports,
+)
 from llm_search_eval.usage import Budget, CostTracker, PriceTable
 
 EXIT_OK = 0
@@ -608,6 +613,9 @@ def cmd_run(args: argparse.Namespace) -> int:
             )
         for path in written:
             print(f"wrote {path}", file=sys.stderr)
+    mixed = mixed_versions_warning(data.get("judging"))
+    if mixed:
+        print(f"warning: {mixed}", file=sys.stderr)
     if data["cost"]["budget"]["exhausted"]:
         print(
             f"warning: budget {data['cost']['budget']['reason']}; "

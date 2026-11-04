@@ -82,3 +82,108 @@ def test_markdown_judging_and_cost_sections(example_dataset, example_runs):
     assert "| `gpt-4o-mini` | 1 | 1,000 | 100 | $0.0002 |" in md
     assert "No price configured for `local`" in md
     assert "Budget: max cost USD 5" in md
+
+
+def test_judgments_record_the_judge_model_version(tmp_path, example_dataset, example_runs):
+    from llm_search_eval.judges import Judge, Judgment
+    from llm_search_eval.judges.base import judge_info
+
+    class SnapshotJudge(Judge):
+        name = "snapshot"
+
+        @property
+        def info(self):
+            return judge_info(self.label, "example.test", "judge-model")
+
+        def judge(self, query, product):
+            return Judgment(1, "ok", model_version="judge-model-2026-01-01")
+
+    report = evaluate(example_dataset, example_runs, judge=SnapshotJudge())
+    write_reports(report, tmp_path)
+    lines = (tmp_path / "judgments.jsonl").read_text(encoding="utf-8").splitlines()
+    record = json.loads(lines[0])
+    assert record["judge_model"] == "judge-model"
+    assert record["judge_model_version"] == "judge-model-2026-01-01"
+    data = json.loads((tmp_path / "report.json").read_text(encoding="utf-8"))
+    assert data["judging"]["model_versions"] == ["judge-model-2026-01-01"]
+
+
+def test_judgments_omit_the_model_fields_when_unknown(tmp_path, example_dataset, example_runs):
+    report = evaluate(example_dataset, example_runs, judge=MockJudge())
+    write_reports(report, tmp_path)
+    record = json.loads((tmp_path / "judgments.jsonl").read_text(encoding="utf-8").splitlines()[0])
+    assert "judge_model" not in record
+    assert "judge_model_version" not in record
+    assert report.to_dict()["judging"]["model_versions"] == []
+
+
+def _versioned_judge(version, name="snapshot"):
+    from llm_search_eval.judges.base import Judge, Judgment, judge_info
+
+    class VersionedJudge(Judge):
+        @property
+        def info(self):
+            return judge_info(self.label, "example.test", "judge-model")
+
+        def judge(self, query, product):
+            return Judgment(1, "ok", model_version=version)
+
+    VersionedJudge.name = name
+    return VersionedJudge()
+
+
+def test_single_judge_version_is_not_flagged(tmp_path, example_dataset, example_runs):
+    report = evaluate(example_dataset, example_runs, judge=_versioned_judge("judge-model-v1"))
+    judging = report.to_dict()["judging"]
+    assert judging["mixed_model_versions"] is False
+    assert list(judging["model_version_counts"]) == ["judge-model"]
+    assert list(judging["model_version_counts"]["judge-model"]) == ["judge-model-v1"]
+    assert "Warning:** Judge model versions differ" not in render_markdown(report)
+
+
+def test_mock_judge_reports_no_versions(example_dataset, example_runs):
+    judging = evaluate(example_dataset, example_runs, judge=MockJudge()).to_dict()["judging"]
+    assert judging["mixed_model_versions"] is False
+    assert judging["model_version_counts"] == {}
+
+
+def test_cached_and_fresh_versions_are_flagged(tmp_path, example_dataset, example_runs):
+    from llm_search_eval.judges import JudgmentCache
+    from llm_search_eval.judges.base import Judgment
+    from llm_search_eval.judges.cache import cache_key
+
+    judge = _versioned_judge("judge-model-v2")
+    cache = JudgmentCache()
+    qid, pid = next(
+        (q, p)
+        for q in example_dataset.queries
+        for p in example_runs[0].ranking(q, 10)
+        if example_dataset.gold_label(q, p) is None
+    )
+    key = cache_key(judge.fingerprint, example_dataset.queries[qid], example_dataset.products[pid])
+    cache.put(key, Judgment(2, "cached", model_version="judge-model-v1"))
+    report = evaluate(example_dataset, example_runs, judge=judge, cache=cache)
+    judging = report.to_dict()["judging"]
+    assert judging["mixed_model_versions"] is True
+    counts = judging["model_version_counts"]["judge-model"]
+    assert counts["judge-model-v1"] == 1
+    assert counts["judge-model-v2"] == judging["pairs"] - 1
+    md = render_markdown(report)
+    assert "> **Warning:** Judge model versions differ within this run" in md
+    assert "judge-model-v1: 1" in md
+    write_reports(report, tmp_path)
+    data = json.loads((tmp_path / "report.json").read_text(encoding="utf-8"))
+    assert data["judging"]["mixed_model_versions"] is True
+
+
+def test_panel_votes_are_counted_per_member_model(example_dataset, example_runs):
+    from llm_search_eval.judges.panel import JudgePanel
+
+    panel = JudgePanel(
+        [_versioned_judge("judge-model-v1", "a"), _versioned_judge("judge-model-v2", "b")]
+    )
+    judging = evaluate(example_dataset, example_runs, judge=panel).to_dict()["judging"]
+    counts = judging["model_version_counts"]["judge-model"]
+    assert set(counts) == {"judge-model-v1", "judge-model-v2"}
+    assert counts["judge-model-v1"] == counts["judge-model-v2"] == judging["pairs"]
+    assert judging["mixed_model_versions"] is True

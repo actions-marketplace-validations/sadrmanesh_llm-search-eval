@@ -284,6 +284,15 @@
     info.appendChild(el("p", { text: "Judge: " + j.judge + ". " + j.pairs + " judged pair(s)." }));
     var prov = provenance(j);
     if (prov) info.appendChild(el("p", { class: "note", text: prov }));
+    if (j.mixed_model_versions) {
+      var mixed = Object.keys(j.model_version_counts || {}).filter(function (m) {
+        return Object.keys(j.model_version_counts[m]).length > 1;
+      }).map(function (m) {
+        var found = j.model_version_counts[m];
+        return m + " (" + Object.keys(found).map(function (v) { return v + ": " + found[v]; }).join(", ") + ")";
+      });
+      info.appendChild(el("p", { class: "warn", text: "Warning: judge model versions differ within this run, so its scores are not directly comparable: " + mixed.join("; ") + "." }));
+    }
     if (j.panel && j.panel.judges) {
       info.appendChild(table(["Member", "Provider", "Model", "Prompt version", "Prompt hash"], j.panel.judges.map(function (m) {
         return el("tr", null, [td(m.judge), td(orNa(m.provider)), td(orNa(m.model)), td(orNa(m.prompt_version)), td(orNa(m.prompt_hash))]);

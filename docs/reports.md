@@ -8,7 +8,7 @@
 | `report.json` | Everything in the Markdown report plus per-query values, rankings, labels, and product summaries. |
 | `report.html` | Interactive dashboard in a single file. |
 | `cost.json` | Token usage, cost, and budget state (when a judge is used). |
-| `judgments.jsonl` | Every judge label with reason, source, panel votes, and the gold label for calibration pairs. |
+| `judgments.jsonl` | Every judge label with reason, source, panel votes, the gold label for calibration pairs, and the judge model. `judge_model` is the configured model and `judge_model_version` is the model name the provider returned with the reply, often a dated snapshot such as `gpt-4o-mini-2024-07-18`. Panel votes add `vote_model_versions`. Fields a judge does not report are left out. `report.json` lists every returned version under `judging.model_versions`, and `judging.model_version_counts` maps each configured model (panel members included) to the versions it returned and how many judgments each covered, cached ones included. When any model returned more than one version, `judging.mixed_model_versions` is `true` and the CLI, `report.md` and `report.html` print a warning, since those scores are not directly comparable. Judges that report no version give an empty mapping and `false`. |
 
 Choose formats with `--format md,json,html` (all three by default).
 

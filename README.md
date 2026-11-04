@@ -77,7 +77,7 @@ pip install llm-search-eval
 or straight from a release tag:
 
 ```bash
-pip install "git+https://github.com/sadrmanesh/llm-search-eval@v0.4.0"
+pip install "git+https://github.com/sadrmanesh/llm-search-eval@v0.5.0"
 ```
 
 Optional extras let the connectors reuse official clients: `llm-search-eval[elasticsearch]`, `[opensearch]`, and `[algolia]`. They are not needed for the default HTTP mode.
@@ -85,7 +85,7 @@ Optional extras let the connectors reuse official clients: `llm-search-eval[elas
 Or run the Docker image from [Docker Hub](https://hub.docker.com/r/sadrmanesh/llm-search-eval) or the GitHub Container Registry (`ghcr.io/sadrmanesh/llm-search-eval`), for `linux/amd64` and `linux/arm64`. Mount your data into `/work`:
 
 ```bash
-docker run --rm -v "$PWD:/work" sadrmanesh/llm-search-eval:0.4.0 run \
+docker run --rm -v "$PWD:/work" sadrmanesh/llm-search-eval:0.5.0 run \
   -q eval/queries.jsonl -p eval/products.jsonl --qrels eval/qrels.csv \
   -s bm25=eval/runs/bm25.jsonl -s hybrid=eval/runs/hybrid.trec --judge mock -o reports
 ```
@@ -330,7 +330,7 @@ It checks metric floors and drops against the baseline system or against a `--re
 The repository is also a reusable GitHub Action that runs the evaluation, applies the gate, writes the result to the job summary, and posts it as a pull request comment that is updated on every push:
 
 ```yaml
-- uses: sadrmanesh/llm-search-eval@v0.4.0
+- uses: sadrmanesh/llm-search-eval@v0.5.0
   env:
     OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
   with:

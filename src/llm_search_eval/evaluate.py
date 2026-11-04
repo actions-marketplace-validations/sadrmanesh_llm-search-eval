@@ -350,6 +350,30 @@ def _model_versions(judged: Sequence[JudgedPair]) -> list[str]:
     return sorted(found)
 
 
+def _model_version_counts(judged: Sequence[JudgedPair], judge: Judge) -> dict[str, dict[str, int]]:
+    """Returned versions per configured model, with how many judgments reported each.
+
+    Panel votes count under the member's configured model. Pairs and votes whose
+    judge reported no version are left out, so a judge that reports nothing yields
+    an empty mapping.
+    """
+    member_models: dict[str, str] = {}
+    if isinstance(judge, JudgePanel):
+        for member in judge.info.get("members", []):
+            member_models[member["judge"]] = member.get("model") or member["judge"]
+    fallback = judge.info.get("model") or judge.label
+    counts: dict[str, Counter[str]] = {}
+    for pair in judged:
+        if pair.judge_model_version:
+            model = pair.judge_model or fallback
+            counts.setdefault(model, Counter())[pair.judge_model_version] += 1
+        for vote in pair.votes:
+            if vote.model_version:
+                model = member_models.get(vote.judge, vote.judge)
+                counts.setdefault(model, Counter())[vote.model_version] += 1
+    return {model: dict(sorted(found.items())) for model, found in sorted(counts.items())}
+
+
 def judge_analysis(
     judged: Sequence[JudgedPair], judge: Judge | None, threshold: int
 ) -> dict[str, Any] | None:
@@ -358,6 +382,7 @@ def judge_analysis(
         return None
     members = list(judge.labels) if isinstance(judge, JudgePanel) else []
     distribution = Counter(p.relevance for p in judged)
+    version_counts = _model_version_counts(judged, judge)
     out: dict[str, Any] = {
         "judge": judge.label,
         "fingerprint": judge.fingerprint,
@@ -365,6 +390,8 @@ def judge_analysis(
         "panel": None,
         "pairs": len(judged),
         "model_versions": _model_versions(judged),
+        "model_version_counts": version_counts,
+        "mixed_model_versions": any(len(v) > 1 for v in version_counts.values()),
         "label_distribution": {str(g): distribution.get(g, 0) for g in range(4)},
         "agreement": None,
         "gold_agreement": None,

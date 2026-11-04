@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A warning when judge model versions differ within one run. `report.json` gains `judging.model_version_counts` (versions and judgment counts per configured model, panel votes and cached judgments included) and `judging.mixed_model_versions`, which is `true` when any model returned more than one version. The CLI, `report.md` and `report.html` then warn that the scores are not directly comparable. Existing fields are unchanged.
 - The judge model version next to each score. OpenAI-compatible judges keep the `model` field of each reply, which providers often fill with a dated snapshot of the requested model. `judgments.jsonl` gains `judge_model` and `judge_model_version` (and `vote_model_versions` for panels), the judgment cache stores `model_version`, and `report.json` lists every returned version under `judging.model_versions`, so scores from a silently updated model can be told apart. Existing fields are unchanged.
 
 ## [0.4.0] - 2026-10-31

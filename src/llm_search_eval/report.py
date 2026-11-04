@@ -289,6 +289,28 @@ def provenance_line(info: dict[str, Any]) -> str:
     return text[0].upper() + text[1:] + "."
 
 
+def mixed_versions_warning(judging: dict[str, Any] | None) -> str | None:
+    """One-line warning when a configured model returned more than one version."""
+    if not judging or not judging.get("mixed_model_versions"):
+        return None
+    parts = [
+        f"{model} ({', '.join(f'{v}: {n}' for v, n in found.items())})"
+        for model, found in (judging.get("model_version_counts") or {}).items()
+        if len(found) > 1
+    ]
+    return (
+        "judge model versions differ within this run, so its scores are not directly "
+        "comparable: " + "; ".join(parts)
+    )
+
+
+def mixed_versions_lines(judging: dict[str, Any] | None) -> list[str]:
+    warning = mixed_versions_warning(judging)
+    if warning is None:
+        return []
+    return [f"> **Warning:** {_escape(warning[0].upper() + warning[1:])}.", ""]
+
+
 def _judging_section(judging: dict[str, Any] | None) -> list[str]:
     if not judging:
         return []
@@ -302,6 +324,7 @@ def _judging_section(judging: dict[str, Any] | None) -> list[str]:
     provenance = provenance_line(judging)
     if provenance:
         out += [provenance, ""]
+    out += mixed_versions_lines(judging)
     panel = judging.get("panel") or {}
     if panel.get("judges"):
         out += _table(

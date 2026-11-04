@@ -55,4 +55,5 @@ svg .ci { stroke: var(--text); stroke-width: 1.5; fill: none; opacity: .7; }
 .src { color: var(--muted); font-size: 12px; }
 .reason { color: var(--muted); font-size: 12px; display: block; }
 .note { color: var(--muted); font-size: 13px; }
+.warn { color: var(--warn); font-weight: 600; }
 footer { color: var(--muted); padding: 0 32px 32px; font-size: 12px; }

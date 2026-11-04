@@ -311,7 +311,7 @@ llm-search-eval sample -q queries.jsonl -o to-label.jsonl --sample 300 --stratif
 | `report.json` | Everything above plus per-query metric values, rankings, labels, and the full configuration. |
 | `report.html` | Interactive dashboard in one self-contained file: metric charts with interval whiskers, system comparison with per-query deltas, per-stratum results, pairwise verdicts, judge agreement, cost, and a searchable per-query drilldown that shows every system's ranking side by side. |
 | `cost.json` | Token usage, cost per model, and budget state. |
-| `judgments.jsonl` | Every judge label with its reason, source, panel votes, gold label for calibration pairs, and the judge model with the model version the provider returned (`judge_model`, `judge_model_version`). |
+| `judgments.jsonl` | Every judge label with its reason, source, panel votes, gold label for calibration pairs, and the judge model with the model version the provider returned (`judge_model`, `judge_model_version`). If one model returns more than one version in a run, `report.json` sets `judging.mixed_model_versions` and the reports print a warning. |
 
 `--format` selects any of `md`, `json`, and `html` (all by default). `llm-search-eval report report.json` re-renders the Markdown or HTML from a saved JSON report. Details: [docs/reports.md](docs/reports.md).
 
